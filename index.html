@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<title>ゲーミングお前</title>
+<meta charset="UTF-8" />
+
+<body>
+
+    <div>
+        <input type="button" id="cameraSwitch" value="カメラ起動" onclick="cameraInit()">
+        <input type="checkbox" id="reverse" value="on" onclick="rev()">←左右反転
+        <input type="range" id="speed" value="2" min="-10" max="10" onchange="spe()">
+    </div>
+    <div>
+        <canvas id="showCanvas"></canvas>
+        <video id="camera" autoplay muted playsinline width="0" height="0"></video>
+    </div>
+
+</body>
+
+</html>
+<script>
+    let video;
+
+    var frame = 0;
+    var speed = 2;
+    var on = true;
+    const slider = document.getElementById("speed");
+    const hideCanvas = document.createElement("canvas");
+    const hideCtx = hideCanvas.getContext("2d", {
+        willReadFrequently: true
+    })
+    const showCanvas = document.getElementById("showCanvas");
+    const showCtx = showCanvas.getContext("2d", {
+        willReadFrequently: true
+    });
+    async function cameraInit() {
+        if (on == false) {
+            var tracks = video.srcObject.getTracks()
+            tracks.forEach(track => {
+                track.stop();
+            });
+            on = true;
+            document.getElementById("cameraSwitch").value = "カメラ起動"
+            return;
+        }
+        video = document.getElementById("camera");
+
+
+
+        var cameraData = await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: {
+                facingMode: "environment",
+            }
+        });
+        on = false;
+        video.srcObject = cameraData;
+
+        showCanvas.width = hideCanvas.width = cameraData.getVideoTracks()[0].getSettings().width;
+        showCanvas.height = hideCanvas.height = cameraData.getVideoTracks()[0].getSettings().height;
+        document.getElementById("cameraSwitch").value = "停止";
+        canvas();
+    }
+    function canvas() {
+        if (on == true) return;
+        hideCtx.drawImage(video, 0, 0, hideCanvas.width, hideCanvas.height);
+        var pixels = hideCtx.getImageData(0, 0, hideCanvas.width, hideCanvas.height);
+        for (var y = 0; y < pixels.height; y++) {
+            for (var x = 0; x < pixels.width; x++) {
+                var i = (y * 4) * pixels.width + x * 4;
+                var r = pixels.data[i], g = pixels.data[i + 1], b = pixels.data[i + 2];
+                var max = Math.max(r, g, b);
+                var min = Math.min(r, g, b);
+                var delta = max - min//0-255
+                var h;
+                if (delta == 0) h = 0;
+                else if (r == max) h = 60 * (g - b) / delta;
+                else if (g == max) h = 120 + 60 * (b - r) / delta;
+                else if (b == max) h = 240 + 60 * (r - g) / delta;
+                h = Math.round(h + 360);
+                //console.log("---");
+                //console.log(pixels.data[i]);
+                //pixels.data[i] = 255;
+                [nr, ng, nb] = hsl2rgb(max + min * 256 + (h + y + frame) % 360 * 65536);
+                pixels.data[i] = nr; pixels.data[i + 1] = ng; pixels.data[i + 2] = nb;
+
+            }
+        }
+
+        showCtx.putImageData(pixels, 0, 0,);
+        frame = (frame + speed + 360) % 360;
+        requestAnimationFrame(canvas);
+
+    };
+    function hsl2rgb(num) {
+        var max = num % 256, min = (Math.floor(num / 256)) % 256, h = Math.floor(num / 65536);
+        var nr, ng, nb;
+        if (h < 60) {
+            nr = max;
+            ng = min + h / 60 * (max - min);
+            nb = min;
+        } else if (h < 120) {
+            nr = ((120 - h) / 60) * (max - min) + min;
+            ng = max;
+            nb = min;
+        } else if (h < 180) {
+            nr = min;
+            ng = max;
+            nb = ((h - 120) / 60) * (max - min) + min;
+        } else if (h < 240) {
+            nr = min;
+            ng = ((240 - h) / 60) * (max - min) + min;
+            nb = max;
+        } else if (h < 300) {
+            nr = ((h - 240) / 60) * (max - min) + min;
+            ng = min;
+            nb = max;
+        } else {
+            nr = max;
+            ng = min;
+            nb = ((360 - h) / 60) * (max - min) + min;
+        }
+        return [Math.round(nr), Math.round(ng), Math.round(nb)];
+    }
+    function rev() {
+        showCanvas.style.transform = document.getElementById("reverse").checked ? "scale(-1, 1)" : "scale(1, 1)";
+    }
+    window.addEventListener('load', function () {
+        slider.addEventListener('input', function () {
+            speed = parseInt(slider.value);
+        })
+    })
+</script>
+<style>
+
+</style>
