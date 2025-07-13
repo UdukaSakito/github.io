@@ -2,16 +2,17 @@
 <html>
 <title>ゲーミングお前</title>
 <meta charset="UTF-8" />
+
 <body>
 
     <div>
         <input type="button" id="cameraSwitch" value="カメラ起動" onclick="cameraInit()">
         <input type="checkbox" id="reverse" value="on" onclick="rev()">←左右反転
-        <input type="range" id="speed" value="2" min="-10" max="10" onchange="spe()">
     </div>
     <div>
         <canvas id="showCanvas"></canvas>
-        <video id="camera" autoplay muted playsinline width="0" height="0"></video>
+        <video id="camera" autoplay muted playsinline width="0" height="0"></video><br>
+        <input type="range" id="speed" value="2" min="-10" max="10">
     </div>
 
 </body>
@@ -131,7 +132,7 @@
     })
 </script>
 <style>
-body {
+    body {
         text-align: center;
     }
 </style>
