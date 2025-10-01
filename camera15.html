@@ -128,7 +128,7 @@
         }
         requestAnimationFrame(canvas);
     }
-    showCanvas.addEventListener("click", (e) => {
+    showCanvas.addEventListener("mousedown", (e) => {
         if (animation[0]) return;
         var x = Math.floor(e.offsetX * 4 / screenSize);
         var y = Math.floor(e.offsetY * 4 / screenSize);
@@ -173,4 +173,5 @@
     body {
         text-align: center;
     }
+
 </style>
