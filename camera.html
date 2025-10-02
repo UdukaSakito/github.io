@@ -129,24 +129,23 @@
         }
         requestAnimationFrame(canvas);
     }
-    ["touchstart", "mousedown"].forEach((eventType) => {
-        showCanvas.addEventListener(eventType, (e) => {
-            if (animation[0]) return;
-            let x, y;
-            if (navigator.userAgent.match(/iPhone|Android.+Mobile/)) {
-                x = Math.floor(e.touches[0].clientX * 4 / screenSize);
-                y = Math.floor(e.touches[0].clientY * 4 / screenSize);
-            } else {
-                x = Math.floor(e.offsetX * 4 / screenSize);
-                y = Math.floor(e.offsetY * 4 / screenSize);
-            }
-            if ((Math.abs(x - blank[0]) == 1 && Math.abs(y - blank[1]) == 0) || (Math.abs(x - blank[0]) == 0 && Math.abs(y - blank[1]) == 1)) {
-                [posList[y][x], posList[blank[1]][blank[0]]] = [posList[blank[1]][blank[0]], posList[y][x]];
-                animation = [true, x, y, blank[0], blank[1]];
-                animPos = [0, 0];
-                animDir = [animation[3] - animation[1], animation[4] - animation[2]];
-            }
-        });
+    var phone = navigator.userAgent.match(/iPhone|Android.+Mobile/);
+    showCanvas.addEventListener(phone ? "touchstart" : "mousedown", (e) => {
+        if (animation[0] || phase != "game") return;
+        let x, y;
+        if (phone) {
+            x = Math.floor(e.touches[0].clientX * 4 / screenSize);
+            y = Math.floor(e.touches[0].clientY * 4 / screenSize);
+        } else {
+            x = Math.floor(e.offsetX * 4 / screenSize);
+            y = Math.floor(e.offsetY * 4 / screenSize);
+        }
+        if ((Math.abs(x - blank[0]) == 1 && Math.abs(y - blank[1]) == 0) || (Math.abs(x - blank[0]) == 0 && Math.abs(y - blank[1]) == 1)) {
+            [posList[y][x], posList[blank[1]][blank[0]]] = [posList[blank[1]][blank[0]], posList[y][x]];
+            animation = [true, x, y, blank[0], blank[1]];
+            animPos = [0, 0];
+            animDir = [animation[3] - animation[1], animation[4] - animation[2]];
+        }
     });
     function setUp() {
         var dir = [
