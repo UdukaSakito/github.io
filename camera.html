@@ -1,65 +1,185 @@
 <!DOCTYPE html>
 <html>
-<head>
-	<meta charset="utf-8">
-	<title></title>
-	<script src="https://xs673753.xsrv.jp/2D_graphics.js"></script>
-
-	<script>
-		function lissajous() {
-			let fx0, fy0,len0,fx1,fy1,len1, rot, num_dot, tick, theta, p, sp;
-            len0 = parseFloat(document.getElementById("len0").value);
-	    fx0 = parseFloat(document.getElementById("fx0").value);
-            fy0 = parseFloat(document.getElementById("fy0").value);
-            len1 = parseFloat(document.getElementById("len1").value);
-            fx1 = parseFloat(document.getElementById("fx1").value);
-            fy1 = parseFloat(document.getElementById("fy1").value);
-            rot = parseFloat(document.getElementById("rot").value);
-	    	num_dot=parseFloat(document.getElementById("num_dot").value);
-			set_coordinate(0, 0,2.6875*(len0+len1), 0);
-			tick = Math.PI * 2.0;
-			for (i = 0; i < num_dot; i++) {
-				theta = i*rot / num_dot;
-                p = new point(len0 * diaCos(theta * fx0) + len1 * diaCos(theta * fx1), len0 * diaSin(theta * fy0) + len1 * diaSin(theta * fy1));
-				//console.log(theta+","+diaSin(theta)+","+diaCos(theta));
-				sp = screen_point(p);
-				draw_pixel(sp.x+X_size/4, sp.y,`hsl(${360 *i/num_dot},100%, 50%)`);
-				p = new point(len0 * Math.cos(theta*tick * fx0) + len1*Math.cos(theta *tick* fx1), len0 * Math.sin(theta*tick * fy0) + len1 * Math.sin(theta*tick * fy1))
-				sp=screen_point(p);
-				draw_pixel(sp.x-X_size/4, sp.y,`hsl(${360 *i/num_dot},100%, 50%)`);
-            }
-		}
-		function diaSin(num) {
-			var i = (num - Math.floor(num)) * 4;
-			var j = i - Math.floor(i);
-			if (i < 1) return j;
-			else if (i < 2) return 1 - j;
-			else if (i < 3) return - j;
-			else return -1 + j;
-		}
-        function diaCos(num) {
-			return diaSin(num+0.25);
-        }
-	</script>
-</head>
+<title>15パズル</title>
+<meta charset="UTF-8" />
 
 <body>
-	<canvas id="canvas" width="1080" height="720"></canvas>
-	<form>
-		<input type="button" value="draw" onclick="clear_canvas();lissajous();">
-		<input type="button" value="png画像作成" onclick="canvas_to_png(`png_image`);">
-		len0:<input id="len0" type="number" value="1" />
-		fx0:<input id="fx0" type="number" value="1" />
-		fy0:<input id="fy0" type="number" value="1" />
-		len1:<input id="len1" type="number" value="1" />
-		fx1:<input id="fx1" type="number" value="1" />
-		fy1:<input id="fy1" type="number" value="1" />
-		rot:<input id="rot" type="number" value="1" />
-		num_dot:<input id="num_dot" type="number" value="100000" />
-	</form>
-
-	<br>
-	<img id="png_image">
+    <canvas id="showCanvas" width="0" height="0"></canvas>
+    <video id="camera" autoplay muted playsinline width="0" height="0"></video><br>
+    <input type="button" id="cameraSwitch" value="カメラ起動" onclick="buttonEvent()">
+    <p id="text"></p>
 </body>
-</html>
 
+</html>
+<script>
+    let video;
+    let cameraSize;
+    let screenSize;
+    let size;
+    let camW, camH;
+    var on = true;
+    var canClick = true;
+    let posList = [
+        [0, 1, 2, 3],
+        [4, 5, 6, 7],
+        [8, 9, 10, 11],
+        [12, 13, 14, 15]//15は空
+    ];
+    let blank = [3, 3];
+    let animPos;
+    let animDir;
+    let vanishRate = -1.0;
+    let phase = "start";//start ready game clear
+    var animation = [false, 0, 0, 0, 0];//移動中か,出発座標,目的地座標
+    const hideCanvas = document.createElement("canvas");
+    const hideCtx = hideCanvas.getContext("2d", {
+        willReadFrequently: true
+    })
+    const showCanvas = document.getElementById("showCanvas");
+    const showCtx = showCanvas.getContext("2d", {
+        willReadFrequently: true
+    });
+    const button = document.getElementById("cameraSwitch");
+    async function buttonEvent() {
+        if (phase == "start") {
+            setUp();
+            video = document.getElementById("camera");
+            var cameraData = await navigator.mediaDevices.getUserMedia({
+                audio: false,
+                video: {
+                    facingMode: "user",
+                }
+            });
+            video.srcObject = cameraData;
+            camW = cameraData.getVideoTracks()[0].getSettings().width;
+            camH = cameraData.getVideoTracks()[0].getSettings().height;
+            screenSize = Math.min(document.documentElement.clientWidth, document.documentElement.clientHeight * 3 / 4);
+            cameraSize = Math.min(camW, camH);
+            size = screenSize / 4;
+            hideCanvas.width = hideCanvas.height = cameraSize;
+            showCanvas.width = showCanvas.height = screenSize;
+            button.value = "スタート";
+            phase = "ready";
+            hideCtx.scale(-1, 1);
+            canvas();
+        } else if (phase == "ready") {
+            vanishRate = 1;
+            button.hidden = true;
+            document.getElementById("text").innerText = null;
+        }
+    }
+    let startTime, clearTime;
+    function canvas() {
+        showCtx.clearRect(0, 0, screenSize, screenSize);
+        hideCtx.drawImage(video, (camW - cameraSize) / 2, (camH - cameraSize) / 2, cameraSize, cameraSize, -cameraSize, 0, cameraSize, cameraSize);
+        switch (phase) {
+            case "ready":
+                showCtx.drawImage(hideCanvas, 0, 0, screenSize, screenSize);
+                if (vanishRate > 0) {
+                    showCtx.clearRect(screenSize - size, screenSize - size, size, size);
+                    showCtx.drawImage(hideCanvas, cameraSize * 3 / 4, cameraSize * 3 / 4, cameraSize / 4, cameraSize / 4, screenSize + (-1 - vanishRate) / 2 * size, screenSize + (-1 - vanishRate) / 2 * size, size * vanishRate, size * vanishRate);
+                    vanishRate -= 0.0625;
+                    if (vanishRate <= 0) {
+                        phase = "game"; vanishRate = 0;
+                        startTime = new Date();
+                    }
+                } break;
+            case "game": for (var x = 0; x < 4; x++) {
+                for (var y = 0; y < 4; y++) {
+                    if ((x == blank[0] && y == blank[1])) continue;
+                    var xPos = x * size;
+                    var yPos = y * size;
+                    var imageId = posList[y][x];
+                    var xImage = (imageId % 4) * cameraSize / 4;
+                    var yImage = (Math.floor(imageId / 4)) * cameraSize / 4;
+                    if (animation[0] && x == animation[1] && y == animation[2]) {
+                        animPos[0] += 0.34 * (animDir[0]);
+                        animPos[1] += 0.34 * (animDir[1]);
+                        var clear = false;
+                        if (Math.max(Math.abs(animPos[0]), Math.abs(animPos[1])) >= 1) {
+                            animPos[0] = animDir[0]; animPos[1] = animDir[1];
+                            blank = [animation[1], animation[2]]; animation[0] = false;
+                            var same = 0;
+                            for (var c = 0; c < 16; c++) {
+                                if (posList[Math.floor(c / 4)][c % 4] == c) same++;
+                            }
+                            if (same == 16) clear = true;
+                        }
+                        showCtx.drawImage(hideCanvas, xImage, yImage, cameraSize / 4, cameraSize / 4, xPos + animPos[0] * size, yPos + animPos[1] * size, size, size);
+                        if (clear) { phase = "clear"; clearTime = Math.floor((new Date() - startTime) / 1000) }
+                        continue;
+
+                    }
+                    showCtx.drawImage(hideCanvas, xImage, yImage, cameraSize / 4, cameraSize / 4, xPos, yPos, size, size);
+                }
+            } break;
+            case "clear":
+                showCtx.drawImage(hideCanvas, 0, 0, screenSize, screenSize);
+                if (vanishRate < 1) {
+                    vanishRate += 0.125;
+                    showCtx.clearRect(screenSize - size, screenSize - size, size, size);
+                    showCtx.drawImage(hideCanvas, cameraSize * 3 / 4, cameraSize * 3 / 4, cameraSize / 4, cameraSize / 4, screenSize + (-1 - vanishRate) / 2 * size, screenSize + (-1 - vanishRate) / 2 * size, size * vanishRate, size * vanishRate);
+                    if (vanishRate >= 1) {
+                        vanishRate = -1; phase = "ready"; button.hidden = false; button.value = "再挑戦";
+                        document.getElementById("text").innerText = "Game Clear\nクリアタイム:" + Math.floor(clearTime / 60) + "分" + clearTime % 60 + "秒";
+                        setUp();
+                    }
+                }
+                break;
+        }
+        requestAnimationFrame(canvas);
+    }
+    ["touchstart", "mousedown"].forEach((eventType) => {
+        showCanvas.addEventListener(eventType, (e) => {
+            if (animation[0]) return;
+            let x, y;
+            if (navigator.userAgent.match(/iPhone|Android.+Mobile/)) {
+                x = Math.floor(e.touches[0].clientX * 4 / screenSize);
+                y = Math.floor(e.touches[0].clientY * 4 / screenSize);
+            } else {
+                x = Math.floor(e.offsetX * 4 / screenSize);
+                y = Math.floor(e.offsetY * 4 / screenSize);
+            }
+            if ((Math.abs(x - blank[0]) == 1 && Math.abs(y - blank[1]) == 0) || (Math.abs(x - blank[0]) == 0 && Math.abs(y - blank[1]) == 1)) {
+                [posList[y][x], posList[blank[1]][blank[0]]] = [posList[blank[1]][blank[0]], posList[y][x]];
+                animation = [true, x, y, blank[0], blank[1]];
+                animPos = [0, 0];
+                animDir = [animation[3] - animation[1], animation[4] - animation[2]];
+            }
+        });
+    });
+    function setUp() {
+        var dir = [
+            [0, -1], [1, 0], [0, 1], [-1, 0]//上右下左0123
+        ];
+        var log = [-1, -1];
+        for (var i = 0; i < 512; i++) {
+            var canMove = [];
+            var moveList = [];
+            for (var f = 0; f < 4; f++) {
+                moveList.push([blank[0] + dir[f][0], blank[1] + dir[f][1]]);
+                if (moveList[f][0] < 0 || moveList[f][0] > 3 || moveList[f][1] < 0 || moveList[f][1] > 3) continue;
+                if (log[0] == moveList[f][0] || log[1] == moveList[f][1]) continue;
+                canMove.push(f);
+            }
+            var random = Math.floor(Math.random() * canMove.length);
+            var x = moveList[canMove[random]][0];
+            var y = moveList[canMove[random]][1];
+            [posList[y][x], posList[blank[1]][blank[0]]] = [posList[blank[1]][blank[0]], posList[y][x]];
+            log = blank;
+            blank = [x, y];
+            if (i >= 15) {
+                var different = 0;
+                for (var c = 0; c < 16; c++) {
+                    if (posList[Math.floor(c / 4)][c % 4] != c) different++;
+                }
+                if (different == 16) break;
+            }
+        }
+    }
+</script>
+<style>
+    body {
+        text-align: center;
+    }
+</style>
