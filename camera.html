@@ -130,6 +130,7 @@
         requestAnimationFrame(canvas);
     }
     var phone = navigator.userAgent.match(/iPhone|Android.+Mobile/);
+    document.getElementById("text").innerText = phone ? "touchstart" : "mousedown";
     showCanvas.addEventListener(phone ? "touchstart" : "mousedown", (e) => {
         if (animation[0] || phase != "game") return;
         let x, y;
