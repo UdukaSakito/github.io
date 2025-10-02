@@ -70,13 +70,13 @@
     }
     let startTime, clearTime;
     function canvas() {
-        showCtx.clearRect(0, 0, screenSize, screenSize);
+        showCtx.fillRect(0, 0, screenSize, screenSize);
         hideCtx.drawImage(video, (camW - cameraSize) / 2, (camH - cameraSize) / 2, cameraSize, cameraSize, -cameraSize, 0, cameraSize, cameraSize);
         switch (phase) {
             case "ready":
                 showCtx.drawImage(hideCanvas, 0, 0, screenSize, screenSize);
                 if (vanishRate > 0) {
-                    showCtx.clearRect(screenSize - size, screenSize - size, size, size);
+                    showCtx.fillRect(screenSize - size, screenSize - size, size, size);
                     showCtx.drawImage(hideCanvas, cameraSize * 3 / 4, cameraSize * 3 / 4, cameraSize / 4, cameraSize / 4, screenSize + (-1 - vanishRate) / 2 * size, screenSize + (-1 - vanishRate) / 2 * size, size * vanishRate, size * vanishRate);
                     vanishRate -= 0.0625;
                     if (vanishRate <= 0) {
@@ -84,40 +84,44 @@
                         startTime = new Date();
                     }
                 } break;
-            case "game": for (var x = 0; x < 4; x++) {
-                for (var y = 0; y < 4; y++) {
-                    if ((x == blank[0] && y == blank[1])) continue;
-                    var xPos = x * size;
-                    var yPos = y * size;
-                    var imageId = posList[y][x];
-                    var xImage = (imageId % 4) * cameraSize / 4;
-                    var yImage = (Math.floor(imageId / 4)) * cameraSize / 4;
-                    if (animation[0] && x == animation[1] && y == animation[2]) {
-                        animPos[0] += 0.34 * (animDir[0]);
-                        animPos[1] += 0.34 * (animDir[1]);
-                        var clear = false;
-                        if (Math.max(Math.abs(animPos[0]), Math.abs(animPos[1])) >= 1) {
-                            animPos[0] = animDir[0]; animPos[1] = animDir[1];
-                            blank = [animation[1], animation[2]]; animation[0] = false;
-                            var same = 0;
-                            for (var c = 0; c < 16; c++) {
-                                if (posList[Math.floor(c / 4)][c % 4] == c) same++;
-                            }
-                            if (same == 16) clear = true;
+            case "game":
+                for (var x = 0; x < 4; x++) {
+                    for (var y = 0; y < 4; y++) {
+                        var xPos = x * size;
+                        var yPos = y * size;
+                        if ((x == blank[0] && y == blank[1])) {
+                            showCtx.strokeStyle = "white";
+                            showCtx.strokeRect(xPos, yPos, size - 1, size - 1); continue;
                         }
-                        showCtx.drawImage(hideCanvas, xImage, yImage, cameraSize / 4, cameraSize / 4, xPos + animPos[0] * size, yPos + animPos[1] * size, size, size);
-                        if (clear) { phase = "clear"; clearTime = Math.floor((new Date() - startTime) / 1000) }
-                        continue;
+                        var imageId = posList[y][x];
+                        var xImage = (imageId % 4) * cameraSize / 4;
+                        var yImage = (Math.floor(imageId / 4)) * cameraSize / 4;
+                        if (animation[0] && x == animation[1] && y == animation[2]) {
+                            animPos[0] += 0.34 * (animDir[0]);
+                            animPos[1] += 0.34 * (animDir[1]);
+                            var clear = false;
+                            if (Math.max(Math.abs(animPos[0]), Math.abs(animPos[1])) >= 1) {
+                                animPos[0] = animDir[0]; animPos[1] = animDir[1];
+                                blank = [animation[1], animation[2]]; animation[0] = false;
+                                var same = 0;
+                                for (var c = 0; c < 16; c++) {
+                                    if (posList[Math.floor(c / 4)][c % 4] == c) same++;
+                                }
+                                if (same == 16) clear = true;
+                            }
+                            showCtx.drawImage(hideCanvas, xImage, yImage, cameraSize / 4, cameraSize / 4, xPos + animPos[0] * size, yPos + animPos[1] * size, size, size);
+                            if (clear) { phase = "clear"; clearTime = Math.floor((new Date() - startTime) / 1000) }
+                            continue;
 
+                        }
+                        showCtx.drawImage(hideCanvas, xImage, yImage, cameraSize / 4, cameraSize / 4, xPos, yPos, size, size);
                     }
-                    showCtx.drawImage(hideCanvas, xImage, yImage, cameraSize / 4, cameraSize / 4, xPos, yPos, size, size);
-                }
-            } break;
+                } break;
             case "clear":
                 showCtx.drawImage(hideCanvas, 0, 0, screenSize, screenSize);
                 if (vanishRate < 1) {
                     vanishRate += 0.125;
-                    showCtx.clearRect(screenSize - size, screenSize - size, size, size);
+                    showCtx.fillRect(screenSize - size, screenSize - size, size, size);
                     showCtx.drawImage(hideCanvas, cameraSize * 3 / 4, cameraSize * 3 / 4, cameraSize / 4, cameraSize / 4, screenSize + (-1 - vanishRate) / 2 * size, screenSize + (-1 - vanishRate) / 2 * size, size * vanishRate, size * vanishRate);
                     if (vanishRate >= 1) {
                         vanishRate = -1; phase = "ready"; button.hidden = false; button.value = "再挑戦";
@@ -133,13 +137,12 @@
     showCanvas.addEventListener(phone ? "touchstart" : "mousedown", (e) => {
         if (animation[0] || phase != "game") return;
         let x, y;
-        if (phone) {
-            x = Math.floor(e.touches[0].clientX * 4 / screenSize);
-            y = Math.floor(e.touches[0].clientY * 4 / screenSize);
-        } else {
-            x = Math.floor(e.offsetX * 4 / screenSize);
-            y = Math.floor(e.offsetY * 4 / screenSize);
-        }
+        let tapPos;
+
+        if (phone) tapPos = [e.touches[0].clientX, e.touches[0].clientY];
+        else tapPos = [e.offsetX, e.offsetY];
+        x = Math.floor(tapPos[0] * 4 / screenSize);
+        y = Math.floor(tapPos[1] * 4 / screenSize);
         if ((Math.abs(x - blank[0]) == 1 && Math.abs(y - blank[1]) == 0) || (Math.abs(x - blank[0]) == 0 && Math.abs(y - blank[1]) == 1)) {
             [posList[y][x], posList[blank[1]][blank[0]]] = [posList[blank[1]][blank[0]], posList[y][x]];
             animation = [true, x, y, blank[0], blank[1]];
@@ -182,5 +185,8 @@
         text-align: center;
         touch-action: manipulation;
     }
-</style>
 
+    input[type=button] {
+        font-size: xx-large;
+    }
+</style>
