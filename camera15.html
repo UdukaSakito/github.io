@@ -9,6 +9,7 @@
     <input type="button" id="cameraSwitch" value="カメラ起動" onclick="buttonEvent()">
     <p id="text"></p>
 </body>
+
 </html>
 <script>
     let video;
@@ -63,6 +64,7 @@
             canvas();
         } else if (phase == "ready") {
             vanishRate = 1;
+            button.hidden = true;
             document.getElementById("text").innerText = null;
         }
     }
@@ -78,7 +80,7 @@
                     showCtx.drawImage(hideCanvas, cameraSize * 3 / 4, cameraSize * 3 / 4, cameraSize / 4, cameraSize / 4, screenSize + (-1 - vanishRate) / 2 * size, screenSize + (-1 - vanishRate) / 2 * size, size * vanishRate, size * vanishRate);
                     vanishRate -= 0.0625;
                     if (vanishRate <= 0) {
-                        phase = "game"; button.hidden = true; vanishRate = 0;
+                        phase = "game"; vanishRate = 0;
                         startTime = new Date();
                     }
                 } break;
@@ -127,18 +129,24 @@
         }
         requestAnimationFrame(canvas);
     }
-    ["mousedown", "touchstart"].forEach((eventType) => {
-        showCanvas.addEventListener(eventType, (e) => {
-            if (animation[0]) return;
-            var x = Math.floor(e.offsetX * 4 / screenSize);
-            var y = Math.floor(e.offsetY * 4 / screenSize);
-            if ((Math.abs(x - blank[0]) == 1 && Math.abs(y - blank[1]) == 0) || (Math.abs(x - blank[0]) == 0 && Math.abs(y - blank[1]) == 1)) {
-                [posList[y][x], posList[blank[1]][blank[0]]] = [posList[blank[1]][blank[0]], posList[y][x]];
-                animation = [true, x, y, blank[0], blank[1]];
-                animPos = [0, 0];
-                animDir = [animation[3] - animation[1], animation[4] - animation[2]];
-            }
-        });
+    var phone = navigator.userAgent.match(/iPhone|Android.+Mobile/);
+    document.getElementById("text").innerText = phone ? "touchstart" : "mousedown";
+    showCanvas.addEventListener(phone ? "touchstart" : "mousedown", (e) => {
+        if (animation[0] || phase != "game") return;
+        let x, y;
+        if (phone) {
+            x = Math.floor(e.touches[0].clientX * 4 / screenSize);
+            y = Math.floor(e.touches[0].clientY * 4 / screenSize);
+        } else {
+            x = Math.floor(e.offsetX * 4 / screenSize);
+            y = Math.floor(e.offsetY * 4 / screenSize);
+        }
+        if ((Math.abs(x - blank[0]) == 1 && Math.abs(y - blank[1]) == 0) || (Math.abs(x - blank[0]) == 0 && Math.abs(y - blank[1]) == 1)) {
+            [posList[y][x], posList[blank[1]][blank[0]]] = [posList[blank[1]][blank[0]], posList[y][x]];
+            animation = [true, x, y, blank[0], blank[1]];
+            animPos = [0, 0];
+            animDir = [animation[3] - animation[1], animation[4] - animation[2]];
+        }
     });
     function setUp() {
         var dir = [
@@ -173,7 +181,6 @@
 <style>
     body {
         text-align: center;
+        touch-action: manipulation;
     }
-
 </style>
-
