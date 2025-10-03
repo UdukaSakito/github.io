@@ -1,13 +1,17 @@
 <!DOCTYPE html>
 <html>
-<title>15パズル</title>
+<title>スライドパズル</title>
 <meta charset="UTF-8" />
 
 <body>
-    <canvas id="showCanvas" width="0" height="0"></canvas>
-    <video id="camera" autoplay muted playsinline width="0" height="0"></video><br>
+    <canvas id="showCanvas" width="0" height="0"></canvas><br>
+    <video id="camera" autoplay muted playsinline width="0" height="0"></video>
     <input type="button" id="cameraSwitch" value="カメラ起動" onclick="buttonEvent()">
     <p id="text"></p>
+    <select id="select">
+        <option value="3">3×3</option>
+        <option value="4">4×4</option>
+    </select>
 </body>
 
 </html>
@@ -19,13 +23,9 @@
     let camW, camH;
     var on = true;
     var canClick = true;
-    let posList = [
-        [0, 1, 2, 3],
-        [4, 5, 6, 7],
-        [8, 9, 10, 11],
-        [12, 13, 14, 15]//15は空
-    ];
-    let blank = [3, 3];
+    let posList = [];
+    let panelNum;//縦と横に並べる個数
+    let blank;
     let animPos;
     let animDir;
     let vanishRate = -1.0;
@@ -39,10 +39,10 @@
     const showCtx = showCanvas.getContext("2d", {
         willReadFrequently: true
     });
+    const dropDown = document.getElementById("select");;
     const button = document.getElementById("cameraSwitch");
     async function buttonEvent() {
         if (phase == "start") {
-            setUp();
             video = document.getElementById("camera");
             var cameraData = await navigator.mediaDevices.getUserMedia({
                 audio: false,
@@ -55,7 +55,6 @@
             camH = cameraData.getVideoTracks()[0].getSettings().height;
             screenSize = Math.min(document.documentElement.clientWidth, document.documentElement.clientHeight * 3 / 4);
             cameraSize = Math.min(camW, camH);
-            size = screenSize / 4;
             hideCanvas.width = hideCanvas.height = cameraSize;
             showCanvas.width = showCanvas.height = screenSize;
             button.value = "スタート";
@@ -63,8 +62,12 @@
             hideCtx.scale(-1, 1);
             canvas();
         } else if (phase == "ready") {
+            panelNum = parseInt(dropDown.value);
+            size = screenSize / panelNum;
+            blank = [panelNum - 1, panelNum - 1];
+            setUp();
             vanishRate = 1;
-            button.hidden = true;
+            button.hidden = dropDown.hidden = true;
             document.getElementById("text").innerText = null;
         }
     }
@@ -77,16 +80,16 @@
                 showCtx.drawImage(hideCanvas, 0, 0, screenSize, screenSize);
                 if (vanishRate > 0) {
                     showCtx.fillRect(screenSize - size, screenSize - size, size, size);
-                    showCtx.drawImage(hideCanvas, cameraSize * 3 / 4, cameraSize * 3 / 4, cameraSize / 4, cameraSize / 4, screenSize + (-1 - vanishRate) / 2 * size, screenSize + (-1 - vanishRate) / 2 * size, size * vanishRate, size * vanishRate);
-                    vanishRate -= 0.0625;
+                    showCtx.drawImage(hideCanvas, cameraSize * (panelNum - 1) / panelNum, cameraSize * (panelNum - 1) / panelNum, cameraSize / panelNum, cameraSize / panelNum, screenSize + (-1 - vanishRate) / 2 * size, screenSize + (-1 - vanishRate) / 2 * size, size * vanishRate, size * vanishRate);
+                    vanishRate -= 0.03125;
                     if (vanishRate <= 0) {
                         phase = "game"; vanishRate = 0;
                         startTime = new Date();
                     }
                 } break;
             case "game":
-                for (var x = 0; x < 4; x++) {
-                    for (var y = 0; y < 4; y++) {
+                for (var x = 0; x < panelNum; x++) {
+                    for (var y = 0; y < panelNum; y++) {
                         var xPos = x * size;
                         var yPos = y * size;
                         if ((x == blank[0] && y == blank[1])) {
@@ -94,8 +97,8 @@
                             showCtx.strokeRect(xPos, yPos, size - 1, size - 1); continue;
                         }
                         var imageId = posList[y][x];
-                        var xImage = (imageId % 4) * cameraSize / 4;
-                        var yImage = (Math.floor(imageId / 4)) * cameraSize / 4;
+                        var xImage = (imageId % panelNum) * cameraSize / panelNum;
+                        var yImage = (Math.floor(imageId / panelNum)) * cameraSize / panelNum;
                         if (animation[0] && x == animation[1] && y == animation[2]) {
                             animPos[0] += 0.34 * (animDir[0]);
                             animPos[1] += 0.34 * (animDir[1]);
@@ -104,17 +107,17 @@
                                 animPos[0] = animDir[0]; animPos[1] = animDir[1];
                                 blank = [animation[1], animation[2]]; animation[0] = false;
                                 var same = 0;
-                                for (var c = 0; c < 16; c++) {
-                                    if (posList[Math.floor(c / 4)][c % 4] == c) same++;
+                                for (var c = 0; c < panelNum * panelNum; c++) {
+                                    if (posList[Math.floor(c / panelNum)][c % panelNum] == c) same++;
                                 }
-                                if (same == 16) clear = true;
+                                if (same == panelNum * panelNum) clear = true;
                             }
-                            showCtx.drawImage(hideCanvas, xImage, yImage, cameraSize / 4, cameraSize / 4, xPos + animPos[0] * size, yPos + animPos[1] * size, size, size);
+                            showCtx.drawImage(hideCanvas, xImage, yImage, cameraSize / panelNum, cameraSize / panelNum, xPos + animPos[0] * size, yPos + animPos[1] * size, size, size);
                             if (clear) { phase = "clear"; clearTime = Math.floor((new Date() - startTime) / 1000) }
                             continue;
 
                         }
-                        showCtx.drawImage(hideCanvas, xImage, yImage, cameraSize / 4, cameraSize / 4, xPos, yPos, size, size);
+                        showCtx.drawImage(hideCanvas, xImage, yImage, cameraSize / panelNum, cameraSize / panelNum, xPos, yPos, size, size);
                     }
                 } break;
             case "clear":
@@ -122,11 +125,10 @@
                 if (vanishRate < 1) {
                     vanishRate += 0.125;
                     showCtx.fillRect(screenSize - size, screenSize - size, size, size);
-                    showCtx.drawImage(hideCanvas, cameraSize * 3 / 4, cameraSize * 3 / 4, cameraSize / 4, cameraSize / 4, screenSize + (-1 - vanishRate) / 2 * size, screenSize + (-1 - vanishRate) / 2 * size, size * vanishRate, size * vanishRate);
+                    showCtx.drawImage(hideCanvas, cameraSize * (panelNum - 1) / panelNum, cameraSize * (panelNum - 1) / panelNum, cameraSize / panelNum, cameraSize / panelNum, screenSize + (-1 - vanishRate) / 2 * size, screenSize + (-1 - vanishRate) / 2 * size, size * vanishRate, size * vanishRate);
                     if (vanishRate >= 1) {
-                        vanishRate = -1; phase = "ready"; button.hidden = false; button.value = "再挑戦";
+                        vanishRate = -1; phase = "ready"; button.hidden = dropDown.hidden = false; button.value = "再挑戦";
                         document.getElementById("text").innerText = "Game Clear\nクリアタイム:" + Math.floor(clearTime / 60) + "分" + clearTime % 60 + "秒";
-                        setUp();
                     }
                 }
                 break;
@@ -138,11 +140,10 @@
         if (animation[0] || phase != "game") return;
         let x, y;
         let tapPos;
-
         if (phone) tapPos = [e.touches[0].clientX, e.touches[0].clientY];
         else tapPos = [e.offsetX, e.offsetY];
-        x = Math.floor(tapPos[0] * 4 / screenSize);
-        y = Math.floor(tapPos[1] * 4 / screenSize);
+        x = Math.floor(tapPos[0] * panelNum / screenSize);
+        y = Math.floor(tapPos[1] * panelNum / screenSize);
         if ((Math.abs(x - blank[0]) == 1 && Math.abs(y - blank[1]) == 0) || (Math.abs(x - blank[0]) == 0 && Math.abs(y - blank[1]) == 1)) {
             [posList[y][x], posList[blank[1]][blank[0]]] = [posList[blank[1]][blank[0]], posList[y][x]];
             animation = [true, x, y, blank[0], blank[1]];
@@ -151,6 +152,12 @@
         }
     });
     function setUp() {
+        for (var v = 0; v < panelNum; v++) {
+            posList[v] = [];
+            for (var h = 0; h < panelNum; h++) {
+                posList[v][h] = v * panelNum + h;
+            }
+        }
         var dir = [
             [0, -1], [1, 0], [0, 1], [-1, 0]//上右下左0123
         ];
@@ -160,7 +167,7 @@
             var moveList = [];
             for (var f = 0; f < 4; f++) {
                 moveList.push([blank[0] + dir[f][0], blank[1] + dir[f][1]]);
-                if (moveList[f][0] < 0 || moveList[f][0] > 3 || moveList[f][1] < 0 || moveList[f][1] > 3) continue;
+                if (moveList[f][0] < 0 || moveList[f][0] > panelNum - 1 || moveList[f][1] < 0 || moveList[f][1] > panelNum - 1) continue;
                 if (log[0] == moveList[f][0] || log[1] == moveList[f][1]) continue;
                 canMove.push(f);
             }
@@ -170,23 +177,29 @@
             [posList[y][x], posList[blank[1]][blank[0]]] = [posList[blank[1]][blank[0]], posList[y][x]];
             log = blank;
             blank = [x, y];
-            if (i >= 15) {
+            if (i >= panelNum * panelNum - 1) {
                 var different = 0;
-                for (var c = 0; c < 16; c++) {
-                    if (posList[Math.floor(c / 4)][c % 4] != c) different++;
+                for (var c = 0; c < panelNum * panelNum; c++) {
+                    if (posList[Math.floor(c / panelNum)][c % panelNum] != c) different++;
                 }
-                if (different == 16) break;
+                if (different == panelNum * panelNum) break;
             }
         }
     }
 </script>
 <style>
     body {
+        font-size: x-large;
         text-align: center;
         touch-action: manipulation;
     }
 
-    input[type=button] {
-        font-size: xx-large;
+    p {
+        margin: 0;
+    }
+
+    input[type=button],
+    select {
+        font-size: x-large;
     }
 </style>
