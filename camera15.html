@@ -79,6 +79,7 @@
             case "ready":
                 showCtx.drawImage(hideCanvas, 0, 0, screenSize, screenSize);
                 if (vanishRate > 0) {
+                    showCtx.strokeStyle = "gray";
                     showCtx.clearRect(screenSize - size, screenSize - size, size, size);
                     showCtx.drawImage(hideCanvas, cameraSize * (panelNum - 1) / panelNum, cameraSize * (panelNum - 1) / panelNum, cameraSize / panelNum, cameraSize / panelNum, screenSize + (-1 - vanishRate) / 2 * size, screenSize + (-1 - vanishRate) / 2 * size, size * vanishRate, size * vanishRate);
                     vanishRate -= 0.03125;
@@ -92,9 +93,11 @@
                     for (var y = 0; y < panelNum; y++) {
                         var xPos = x * size;
                         var yPos = y * size;
-                        if ((x == blank[0] && y == blank[1])) {
-                            showCtx.lineWidth = FrameWidth;
-                            showCtx.strokeRect(xPos + FrameWidth / 2, yPos + FrameWidth / 2, size - FrameWidth, size - FrameWidth); continue;
+                        if (x == blank[0] && y == blank[1]) {
+                            if (!animation[0]) {
+                                showCtx.lineWidth = FrameWidth;
+                                showCtx.strokeRect(xPos + FrameWidth / 2, yPos + FrameWidth / 2, size - FrameWidth, size - FrameWidth);
+                            } continue;
                         }
                         var imageId = posList[y][x];
                         var xImage = (imageId % panelNum) * cameraSize / panelNum;
@@ -105,6 +108,7 @@
                             var clear = false;
                             if (Math.max(Math.abs(animPos[0]), Math.abs(animPos[1])) >= 1) {
                                 animPos[0] = animDir[0]; animPos[1] = animDir[1];
+                                [posList[animation[2]][animation[1]], posList[animation[4]][animation[3]]] = [posList[animation[4]][animation[3]], posList[animation[2]][animation[1]]];
                                 blank = [animation[1], animation[2]]; animation[0] = false;
                                 var same = 0;
                                 for (var c = 0; c < panelNum * panelNum; c++) {
@@ -145,7 +149,6 @@
         x = Math.floor(tapPos[0] * panelNum / screenSize);
         y = Math.floor(tapPos[1] * panelNum / screenSize);
         if ((Math.abs(x - blank[0]) == 1 && Math.abs(y - blank[1]) == 0) || (Math.abs(x - blank[0]) == 0 && Math.abs(y - blank[1]) == 1)) {
-            [posList[y][x], posList[blank[1]][blank[0]]] = [posList[blank[1]][blank[0]], posList[y][x]];
             animation = [true, x, y, blank[0], blank[1]];
             animPos = [0, 0];
             animDir = [animation[3] - animation[1], animation[4] - animation[2]];
