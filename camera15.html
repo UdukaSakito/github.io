@@ -7,7 +7,7 @@
     <canvas id="showCanvas" width="0" height="0"></canvas><br>
     <video id="camera" autoplay muted playsinline width="0" height="0"></video>
     <input type="button" id="cameraSwitch" value="カメラ起動" onclick="buttonEvent()">
-    <p id="text"></p>
+    <p id="text"><br></p>
     <select id="select">
         <option value="3">3×3</option>
         <option value="4">4×4</option>
@@ -21,13 +21,13 @@
     let screenSize;
     let size;
     let camW, camH;
-    var on = true;
     var canClick = true;
     let posList = [];
     let panelNum;//縦と横に並べる個数
     let blank;
     let animPos;
     let animDir;
+    let FrameWidth = 4;
     let vanishRate = -1.0;
     let phase = "start";//start ready game clear
     var animation = [false, 0, 0, 0, 0];//移動中か,出発座標,目的地座標
@@ -73,13 +73,13 @@
     }
     let startTime, clearTime;
     function canvas() {
-        showCtx.fillRect(0, 0, screenSize, screenSize);
+        showCtx.clearRect(0, 0, screenSize, screenSize);
         hideCtx.drawImage(video, (camW - cameraSize) / 2, (camH - cameraSize) / 2, cameraSize, cameraSize, -cameraSize, 0, cameraSize, cameraSize);
         switch (phase) {
             case "ready":
                 showCtx.drawImage(hideCanvas, 0, 0, screenSize, screenSize);
                 if (vanishRate > 0) {
-                    showCtx.fillRect(screenSize - size, screenSize - size, size, size);
+                    showCtx.clearRect(screenSize - size, screenSize - size, size, size);
                     showCtx.drawImage(hideCanvas, cameraSize * (panelNum - 1) / panelNum, cameraSize * (panelNum - 1) / panelNum, cameraSize / panelNum, cameraSize / panelNum, screenSize + (-1 - vanishRate) / 2 * size, screenSize + (-1 - vanishRate) / 2 * size, size * vanishRate, size * vanishRate);
                     vanishRate -= 0.03125;
                     if (vanishRate <= 0) {
@@ -93,8 +93,8 @@
                         var xPos = x * size;
                         var yPos = y * size;
                         if ((x == blank[0] && y == blank[1])) {
-                            showCtx.strokeStyle = "white";
-                            showCtx.strokeRect(xPos, yPos, size - 1, size - 1); continue;
+                            showCtx.lineWidth = FrameWidth;
+                            showCtx.strokeRect(xPos + FrameWidth / 2, yPos + FrameWidth / 2, size - FrameWidth, size - FrameWidth); continue;
                         }
                         var imageId = posList[y][x];
                         var xImage = (imageId % panelNum) * cameraSize / panelNum;
@@ -124,7 +124,7 @@
                 showCtx.drawImage(hideCanvas, 0, 0, screenSize, screenSize);
                 if (vanishRate < 1) {
                     vanishRate += 0.125;
-                    showCtx.fillRect(screenSize - size, screenSize - size, size, size);
+                    showCtx.clearRect(screenSize - size, screenSize - size, size, size);
                     showCtx.drawImage(hideCanvas, cameraSize * (panelNum - 1) / panelNum, cameraSize * (panelNum - 1) / panelNum, cameraSize / panelNum, cameraSize / panelNum, screenSize + (-1 - vanishRate) / 2 * size, screenSize + (-1 - vanishRate) / 2 * size, size * vanishRate, size * vanishRate);
                     if (vanishRate >= 1) {
                         vanishRate = -1; phase = "ready"; button.hidden = dropDown.hidden = false; button.value = "再挑戦";
