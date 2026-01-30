@@ -1,210 +1,139 @@
 <!DOCTYPE html>
 <html>
-<title>スライドパズル</title>
-<meta charset="UTF-8" />
 
-<body>
-    <canvas id="showCanvas" width="0" height="0"></canvas><br>
-    <video id="camera" autoplay muted playsinline width="0" height="0"></video>
-    <input type="button" id="cameraSwitch" value="カメラ起動" onclick="buttonEvent()">
-    <p id="text"><br></p>
-    <select id="select">
-        <option value="3">3×3</option>
-        <option value="4">4×4</option>
-        <option value="5">5×5</option>
-    </select>
-</body>
+<head>
+  <meta charset="UTF-8" />
+  <script src="matter.min.js"></script>
+  <script>
+    const { Engine, Render, Bodies, Composite, Runner, Body, World } = Matter;
+    window.addEventListener("DOMContentLoaded", function () {
+      matter_init();
+      Matter.Events.on(engine, "afterUpdate", function () {
+        sound();
+        if (ball.position.x < R || ball.position.x > size - R) { Body.setVelocity(ball, { x: -ball.velocity.x / 2, y: ball.velocity.y }); }
+        if (ball.position.y < R || ball.position.y > size - R) { Body.setVelocity(ball, { x: ball.velocity.x, y: -ball.velocity.y / 2 }); }
+        Body.setPosition(ball, { x: clampNumber(ball.position.x, R, size - R), y: clampNumber(ball.position.y, R, size - R) });
+        if (distance(ball.position, goal.position) < (R + goalR)) {
+          score++; document.getElementById("score").innerText = "score:" + score;
+          var posx;
+          while (true) {
+            posx = Math.random() * (size - R / 2) + goalR;
+            if (Math.abs(posx - ball.position.x) > goalR + R) break;
+          }
+          Body.setPosition(goal, { x: posx, y: (Math.random() * size / 2 + R) });
+          Body.setVelocity(ball, { x: 0, y: 0 });
+        }
+      });
+    }); let radix = 1.5, index = 15, size = 640, blank = 10, R = 64, goalR = R / 2, barWid = 32, score = 0;
+    let analyser, freq, min, max, stream;
+    var bar = Array(index), barView = Array(index);
+    const constraint = Array(index);
+    let ball, goal;
+    var engine;
+    async function matter_init() {
+      engine = Engine.create();
+      //engine.gravity.scale = 0.0018;
+      var render = Render.create({
+        element: document.getElementById("canvas"),
+        engine: engine,
+        options: {
+          width: size,
+          height: size,
+          wireframes: false
+        }
+      });
+      ball = Bodies.circle(size / 2, size / 2, R, {
+        friction: 0, frictionAir: 0, restitution: 0.5, render: {
+          fillStyle: '#ffffff',
+        }
+      });
+      goal = Bodies.circle(500, 300, goalR, {
+        friction: 0, frictionAir: 0, restitution: 0.5, isStatic: true, render: {
+          fillStyle: '#770000', options: {
+            wireframes: false
+          },
+          collisionFilter: -1
+        }
+      });
+      Composite.add(engine.world, [ball, goal]);
+      Render.run(render);
+      // create runner
+      var runner = Runner.create();
+
+      // run the engine
+      Runner.run(runner, engine);
+
+      // マイク許可
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true, autoGainControl: true });
+      for (var i = 0; i < index; i++) {
+        bar[i] = Bodies.rectangle(i * (size - blank) / index + barWid / 2 + blank, size * 1.5, barWid, size, {
+          isStatic: true,
+          chamfer: { radius: barWid / 2 }
+        });
+        barView[i] = Bodies.rectangle(bar[i].position.x, bar[i].position.y, barWid, size, {
+          isStatic: true,
+          render: {
+            fillStyle: '#ffffff',
+          }, collisionFilter: -1
+        });
+      }
+      Composite.add(engine.world, bar);
+      Composite.add(engine.world, barView);
+      // AudioContext 作成
+      const audioCtx = new AudioContext();
+      // マイク → AudioNode
+      const source = audioCtx.createMediaStreamSource(stream);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 32768;
+
+      source.connect(analyser);
+
+      freq = new Uint8Array(analyser.frequencyBinCount);//110より小さく880より大きく
+      min = Math.floor(110 / (audioCtx.sampleRate / analyser.fftSize));
+      max = Math.ceil(880 / (audioCtx.sampleRate / analyser.fftSize)) + 1;
+    }
+    //let tempMax = 0;
+    //let soundLog = Array(index).fill(0);
+    async function sound() {
+      if (!stream) return;
+      analyser.getByteFrequencyData(freq);
+      var left = 0;
+      for (var i = 1; i <= index; i++) {
+        var right = Math.ceil((radix ** i) * (max - min + 1) / (radix ** index)) - 1;//1からなので範囲が1小さくなる
+        var num = freq.slice(left + min, right + min);
+        var sum = (num.reduce((currentTotal, num) => currentTotal + num, 0));
+        average = sum / num.length;
+        //Body.translate(bar[i - 1], { x: 0, y: soundLog[i - 1] - average }, [updateVelocity = false])
+        Body.setPosition(bar[i - 1], { x: bar[i - 1].position.x, y: size * 1.5 - average }, [updateVelocity = true]);
+        Body.setPosition(barView[i - 1], { x: bar[i - 1].position.x, y: bar[i - 1].position.y });
+
+        left = right;
+        //soundLog[i - 1] = average;
+      }
+
+
+    }
+    function clampNumber(num, a, b) {
+      return Math.max(Math.min(num, Math.max(a, b)), Math.min(a, b));
+    }
+    function distance(pos1, pos2) {
+      return Math.sqrt((pos1.x - pos2.x) ** 2 + (pos1.y - pos2.y) ** 2);
+    }
+  </script>
+  <style>
+    body {
+      font-size: x-large;
+      text-align: center;
+    }
+
+    canvas {
+      width: min(100%, 88vh);
+    }
+  </style>
+</head>
+
+<div id="canvas">
+</div>
+<p id="score">score:0</p>
 
 </html>
-<script>
-    let video;
-    let cameraSize;
-    let screenSize;
-    let size;
-    let camW, camH;
-    var canClick = true;
-    let posList = [];
-    let panelNum;//縦と横に並べる個数
-    let blank;
-    let animPos;
-    let animDir;
-    let FrameWidth = 4;
-    let vanishRate = -1.0;
-    let phase = "start";//start ready game clear
-    var animation = [false, 0, 0, 0, 0];//移動中か,出発座標,目的地座標
-    const hideCanvas = document.createElement("canvas");
-    const hideCtx = hideCanvas.getContext("2d", {
-        willReadFrequently: true
-    })
-    const showCanvas = document.getElementById("showCanvas");
-    const showCtx = showCanvas.getContext("2d", {
-        willReadFrequently: true
-    });
-    const dropDown = document.getElementById("select");;
-    const button = document.getElementById("cameraSwitch");
-    async function buttonEvent() {
-        if (phase == "start") {
-            video = document.getElementById("camera");
-            var cameraData = await navigator.mediaDevices.getUserMedia({
-                audio: false,
-                video: {
-                    facingMode: "user",
-                }
-            });
-            video.srcObject = cameraData;
-            camW = cameraData.getVideoTracks()[0].getSettings().width;
-            camH = cameraData.getVideoTracks()[0].getSettings().height;
-            screenSize = Math.min(document.documentElement.clientWidth, document.documentElement.clientHeight * 3 / 4);
-            cameraSize = Math.min(camW, camH);
-            hideCanvas.width = hideCanvas.height = cameraSize;
-            showCanvas.width = showCanvas.height = screenSize;
-            button.value = "スタート";
-            phase = "ready";
-            hideCtx.scale(-1, 1);
-            canvas();
-        } else if (phase == "ready") {
-            panelNum = parseInt(dropDown.value);
-            size = screenSize / panelNum;
-            blank = [panelNum - 1, panelNum - 1];
-            setUp();
-            vanishRate = 1;
-            button.hidden = dropDown.hidden = true;
-            document.getElementById("text").innerText = null;
-        }
-    }
-    let startTime, clearTime;
-    function canvas() {
-        showCtx.clearRect(0, 0, screenSize, screenSize);
-        hideCtx.drawImage(video, (camW - cameraSize) / 2, (camH - cameraSize) / 2, cameraSize, cameraSize, -cameraSize, 0, cameraSize, cameraSize);
-        switch (phase) {
-            case "ready":
-                showCtx.drawImage(hideCanvas, 0, 0, screenSize, screenSize);
-                if (vanishRate > 0) {
-                    showCtx.strokeStyle = "gray";
-                    showCtx.clearRect(screenSize - size, screenSize - size, size, size);
-                    showCtx.drawImage(hideCanvas, cameraSize * (panelNum - 1) / panelNum, cameraSize * (panelNum - 1) / panelNum, cameraSize / panelNum, cameraSize / panelNum, screenSize + (-1 - vanishRate) / 2 * size, screenSize + (-1 - vanishRate) / 2 * size, size * vanishRate, size * vanishRate);
-                    vanishRate -= 0.03125;
-                    if (vanishRate <= 0) {
-                        phase = "game"; vanishRate = 0;
-                        startTime = new Date();
-                    }
-                } break;
-            case "game":
-                for (var x = 0; x < panelNum; x++) {
-                    for (var y = 0; y < panelNum; y++) {
-                        var xPos = x * size;
-                        var yPos = y * size;
-                        if (x == blank[0] && y == blank[1]) {
-                            if (!animation[0]) {
-                                showCtx.lineWidth = FrameWidth;
-                                showCtx.strokeRect(xPos + FrameWidth / 2, yPos + FrameWidth / 2, size - FrameWidth, size - FrameWidth);
-                            } continue;
-                        }
-                        var imageId = posList[y][x];
-                        var xImage = (imageId % panelNum) * cameraSize / panelNum;
-                        var yImage = (Math.floor(imageId / panelNum)) * cameraSize / panelNum;
-                        if (animation[0] && x == animation[1] && y == animation[2]) {
-                            animPos[0] += 0.34 * (animDir[0]);
-                            animPos[1] += 0.34 * (animDir[1]);
-                            var clear = false;
-                            if (Math.max(Math.abs(animPos[0]), Math.abs(animPos[1])) >= 1) {
-                                animPos[0] = animDir[0]; animPos[1] = animDir[1];
-                                [posList[animation[2]][animation[1]], posList[animation[4]][animation[3]]] = [posList[animation[4]][animation[3]], posList[animation[2]][animation[1]]];
-                                blank = [animation[1], animation[2]]; animation[0] = false;
-                                var same = 0;
-                                for (var c = 0; c < panelNum * panelNum; c++) {
-                                    if (posList[Math.floor(c / panelNum)][c % panelNum] == c) same++;
-                                }
-                                if (same == panelNum * panelNum) clear = true;
-                            }
-                            showCtx.drawImage(hideCanvas, xImage, yImage, cameraSize / panelNum, cameraSize / panelNum, xPos + animPos[0] * size, yPos + animPos[1] * size, size, size);
-                            if (clear) { phase = "clear"; clearTime = Math.floor((new Date() - startTime) / 1000) }
-                            continue;
-
-                        }
-                        showCtx.drawImage(hideCanvas, xImage, yImage, cameraSize / panelNum, cameraSize / panelNum, xPos, yPos, size, size);
-                    }
-                } break;
-            case "clear":
-                showCtx.drawImage(hideCanvas, 0, 0, screenSize, screenSize);
-                if (vanishRate < 1) {
-                    vanishRate += 0.125;
-                    showCtx.clearRect(screenSize - size, screenSize - size, size, size);
-                    showCtx.drawImage(hideCanvas, cameraSize * (panelNum - 1) / panelNum, cameraSize * (panelNum - 1) / panelNum, cameraSize / panelNum, cameraSize / panelNum, screenSize + (-1 - vanishRate) / 2 * size, screenSize + (-1 - vanishRate) / 2 * size, size * vanishRate, size * vanishRate);
-                    if (vanishRate >= 1) {
-                        vanishRate = -1; phase = "ready"; button.hidden = dropDown.hidden = false; button.value = "再挑戦";
-                        document.getElementById("text").innerText = "Game Clear\nクリアタイム:" + Math.floor(clearTime / 60) + "分" + clearTime % 60 + "秒";
-                    }
-                }
-                break;
-        }
-        requestAnimationFrame(canvas);
-    }
-    var phone = navigator.userAgent.match(/iPhone|Android.+Mobile/);
-    showCanvas.addEventListener(phone ? "touchstart" : "mousedown", (e) => {
-        if (animation[0] || phase != "game") return;
-        let x, y;
-        let tapPos;
-        if (phone) tapPos = [e.touches[0].clientX, e.touches[0].clientY];
-        else tapPos = [e.offsetX, e.offsetY];
-        x = Math.floor(tapPos[0] * panelNum / screenSize);
-        y = Math.floor(tapPos[1] * panelNum / screenSize);
-        if ((Math.abs(x - blank[0]) == 1 && Math.abs(y - blank[1]) == 0) || (Math.abs(x - blank[0]) == 0 && Math.abs(y - blank[1]) == 1)) {
-            animation = [true, x, y, blank[0], blank[1]];
-            animPos = [0, 0];
-            animDir = [animation[3] - animation[1], animation[4] - animation[2]];
-        }
-    });
-    function setUp() {
-        for (var v = 0; v < panelNum; v++) {
-            posList[v] = [];
-            for (var h = 0; h < panelNum; h++) {
-                posList[v][h] = v * panelNum + h;
-            }
-        }
-        var dir = [
-            [0, -1], [1, 0], [0, 1], [-1, 0]//上右下左0123
-        ];
-        var log = [-1, -1];
-        for (var i = 0; i < 512; i++) {
-            var canMove = [];
-            var moveList = [];
-            for (var f = 0; f < 4; f++) {
-                moveList.push([blank[0] + dir[f][0], blank[1] + dir[f][1]]);
-                if (moveList[f][0] < 0 || moveList[f][0] > panelNum - 1 || moveList[f][1] < 0 || moveList[f][1] > panelNum - 1) continue;
-                if (log[0] == moveList[f][0] || log[1] == moveList[f][1]) continue;
-                canMove.push(f);
-            }
-            var random = Math.floor(Math.random() * canMove.length);
-            var x = moveList[canMove[random]][0];
-            var y = moveList[canMove[random]][1];
-            [posList[y][x], posList[blank[1]][blank[0]]] = [posList[blank[1]][blank[0]], posList[y][x]];
-            log = blank;
-            blank = [x, y];
-            if (i >= panelNum * panelNum - 1) {
-                var different = 0;
-                for (var c = 0; c < panelNum * panelNum; c++) {
-                    if (posList[Math.floor(c / panelNum)][c % panelNum] != c) different++;
-                }
-                if (different == panelNum * panelNum) break;
-            }
-        }
-    }
-</script>
-<style>
-    body {
-        font-size: x-large;
-        text-align: center;
-        touch-action: manipulation;
-    }
-
-    p {
-        margin: 0;
-    }
-
-    input[type=button],
-    select {
-        font-size: x-large;
-    }
-</style>
-
