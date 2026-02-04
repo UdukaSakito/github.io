@@ -12,6 +12,18 @@
 
 </html>
 <script>
+
+    const worker = new Worker('backGround.js')
+
+// バックグラウンド処理の結果取得
+worker.onmessage = function (e) {
+    // 結果表示
+    console.log('result: ', e.data) // (3)
+}
+
+// バックグラウンド処理の呼び出し
+worker.postMessage('TEST')
+    
     let video;
     let cameraSize;
     let screenSize;
@@ -183,3 +195,4 @@
         text-align: center;
     }
 </style>
+
